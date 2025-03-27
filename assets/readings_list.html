@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Temperature Readings</title>
+    <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+    <h1>
+        Temperature Readings 
+        <span class="period-title">({{ period }})</span>
+    </h1>
+    <div class="count-info">Showing {{ readings|length }} readings</div>
+
+    <div class="period-nav">
+        <a href="/list/raw" {% if period == "Raw Data" %}class="active"{% endif %}>
+            Raw Data
+        </a>
+        <a href="/list/hour" {% if period == "Hourly Averages" %}class="active"{% endif %}>
+            Hourly Averages
+        </a>
+        <a href="/list/day" {% if period == "Daily Averages" %}class="active"{% endif %}>
+            Daily Averages
+        </a>
+    </div>
+
+    <table class="readings-table">
+        <thead>
+            <tr>
+                <th>Timestamp (UTC)</th>
+                <th>Temperature (°C)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reading in readings %}
+            <tr>
+                <td>{{ reading.timestamp }}</td>
+                <td class="temperature">{{ reading.temperature | round(2) }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="2">No readings available</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
