@@ -1,8 +1,0 @@
-{
-    "serial_port": "/tmp/tty58",
-    "baud_rate": 115200,
-    "mesure_delay": 10,
-    "temperature_path": "/home/painfire/current.log",
-    "hourly_path": "/home/painfire/hourly.log",
-    "daily_path": "/home/painfire/daily.log"
-}
