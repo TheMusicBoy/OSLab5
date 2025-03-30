@@ -1,3 +1,4 @@
+#include "assets.h"
 #include <rpc/http_server.h>
 
 #include <common/format.h>
@@ -24,6 +25,8 @@ namespace NRpc {
 namespace {
 
 ////////////////////////////////////////////////////////////////////////////////
+
+inline const std::string LoggingSource = "HttpServer";
 
 std::vector<std::string> Split(const std::string& s, const std::string& delimiter, size_t limit = 0) {
     std::vector<std::string> tokens;
@@ -265,7 +268,7 @@ bool THandler::IsRaw() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TErrorHandler::TErrorHandler(const std::filesystem::path& errorPage)
+TErrorHandler::TErrorHandler(const std::string& errorPage)
     : THandlerBase(), ErrorPage_(errorPage)
 {}
 
@@ -274,7 +277,8 @@ std::string TErrorHandler::GetAnswer() const {
         return THandlerBase::FormatResponse(
             TResponse()
                 .SetStatus(EHttpCode::NotFound)
-                .SetHtml(ErrorPage_)
+                .SetRaw(ErrorPage_)
+                .SetHeader("Content-Type", "text/html")
         );
     }
     return THandlerBase::FormatResponse(
@@ -348,7 +352,7 @@ int TSocketBase::Poll(const SOCKET& socket, int timeoutMs) {
 ////////////////////////////////////////////////////////////////////////////////
 
 THttpServer::THttpServer(const std::string& interfaceIp, const short int port)
-    : ErrorHandler_("404.html")
+    : ErrorHandler_(NDetail::NotFoundPage)
 {
     Listen(interfaceIp, port);
     LOG_INFO("Successfuly start listening...");

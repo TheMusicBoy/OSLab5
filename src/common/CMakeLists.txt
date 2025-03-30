@@ -7,6 +7,8 @@ set(SRC
     ${INCROOT}/refcounted.h
     ${SRCROOT}/intrusive_ptr.cpp
     ${INCROOT}/intrusive_ptr.h
+    ${SRCROOT}/atomic_intrusive_ptr.cpp
+    ${INCROOT}/atomic_intrusive_ptr.h
     ${SRCROOT}/weak_ptr.cpp
     ${INCROOT}/weak_ptr.h
     ${SRCROOT}/threadpool.cpp

@@ -1,4 +1,4 @@
-#include <assets.h>
+#include "assets.h"
 
 #include <common/exception.h>
 #include <common/logging.h>
@@ -50,7 +50,6 @@ bool TAsset::Format(const jinja2::ValuesMap& values) {
 TAssetsManager::TAssetsManager(std::filesystem::path assetsRoot)
     : AssetsRoot_(std::move(assetsRoot))
 {
-    // Initialize common MIME types
     MimeTypes_ = {
         {".html", "text/html"},
         {".css", "text/css"},
@@ -66,6 +65,7 @@ void TAssetsManager::PreloadAssets() {
     for (const auto& entry : std::filesystem::recursive_directory_iterator(AssetsRoot_)) {
         if (entry.is_regular_file()) {
             const auto path = entry.path().lexically_relative(AssetsRoot_).string();
+            LOG_DEBUG("Prealoaded {}", path);
             
             std::ifstream file(entry.path(), std::ios::binary);
             std::stringstream buffer;
@@ -111,5 +111,7 @@ std::string TAssetsManager::GetMimeType(const std::string& extension) const {
     auto it = MimeTypes_.find(extension);
     return it != MimeTypes_.end() ? it->second : "application/octet-stream";
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 } // namespace NAssets

@@ -1,5 +1,7 @@
 #include <ipc/db_client.h>
 
+#include <thread>
+
 namespace NIpc {
 
 namespace {
@@ -54,73 +56,6 @@ void TDataBaseConfig::Load(const nlohmann::json& data) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TTransaction::TTransaction(pqxx::connection* connection) {
-    ASSERT(connection, "Database not connected");
-    Txn_ = std::make_unique<pqxx::transaction<>>(*connection);
-}
-
-void TTransaction::Commit() {
-    if (!Txn_) {
-        THROW("No active transaction to commit");
-    }
-    Txn_->commit();
-    Committed_ = true;
-    Txn_.reset();
-}
-
-void TTransaction::Rollback() {
-    if (!Txn_) {
-        THROW("No active transaction to rollback");
-    }
-    Txn_->abort();
-    Rollbacked_ = true;
-    Txn_.reset();
-}
-
-void TTransaction::InsertRow(const std::string& table, const TParamMap& columns) {
-    auto splited = SplitMap(columns);
-
-    ExecuteQueryR(
-        NCommon::Format(
-            "INSERT INTO {} ({}) VALUES ({})",
-            table, NCommon::Join(splited.first, ", "), CreatePlaceHolders(columns.size())),
-        splited.second
-    );
-}
-
-void TTransaction::DeleteRow(const std::string& table, const std::string& conditions) {
-    std::string query = "DELETE FROM " + table;
-    if (!conditions.empty()) {
-        query += " WHERE " + conditions;
-    }
-    ExecuteQuery(query);
-}
-
-pqxx::result TTransaction::SelectRows(const std::string& table,
-                                  const std::string& conditions,
-                                  const TQueryParams& orderBy,
-                                  int limit) 
-{
-    std::string query = "SELECT * FROM " + table;
-    
-    if (!conditions.empty()) {
-        query += " WHERE " + conditions;
-    }
-    
-    if (!orderBy.empty()) {
-        query += " ORDER BY ";
-        for (const auto& field : orderBy) {
-            query += (field == orderBy.front() ? "" : ", ") + field;
-        }
-    }
-    
-    if (limit > 0) {
-        query += " LIMIT " + std::to_string(limit);
-    }
-
-    return ExecuteQuery(query);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 TDbClient::TDbClient(TDataBaseConfigPtr config)
@@ -135,10 +70,6 @@ void TDbClient::Connect() {
     } catch (const std::exception& ex) {
         RETHROW(ex, "Database connection failed");
     }
-}
-
-TTransaction TDbClient::BeginTransaction() {
-    return TTransaction(Conn_.get());
 }
 
 void TDbClient::InsertRow(const std::string& table, const TParamMap& columns) {
@@ -183,6 +114,101 @@ pqxx::result TDbClient::SelectRows(const std::string& table,
     }
 
     return ExecuteQuery(query);
+}
+
+TTransaction TDbClient::BeginTransaction() {
+    std::lock_guard<std::mutex> lock(Mutex_);
+    if (Txn_) {
+        THROW("Another transaction is already active");
+    }
+    
+    try {
+        Txn_ = std::make_shared<pqxx::transaction<>>(*Conn_);
+        LOG_DEBUG("Transaction started");
+        return TTransaction(NCommon::TIntrusivePtr<TDbClient>(this), Txn_);
+    } catch (const std::exception& ex) {
+        RETHROW(ex, "Failed to begin transaction");
+    }
+}
+
+TTransaction TDbClient::BeginTransactionWithTimeout(std::chrono::milliseconds timeout) {
+    auto endTime = std::chrono::steady_clock::now() + timeout;
+    
+    while (true) {
+        {
+            std::unique_lock<std::mutex> lock(Mutex_);
+            if (!Txn_) {
+                try {
+                    Txn_ = std::make_shared<pqxx::transaction<>>(*Conn_);
+                    LOG_DEBUG("Transaction started after waiting");
+                    return TTransaction(NCommon::TIntrusivePtr<TDbClient>(this), Txn_);
+                } catch (const std::exception& ex) {
+                    RETHROW(ex, "Failed to begin transaction");
+                }
+            }
+            
+            if (std::chrono::steady_clock::now() >= endTime) {
+                THROW("Timed out waiting for previous transaction to complete");
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
+
+void TDbClient::Commit() {
+    std::lock_guard<std::mutex> lock(Mutex_);
+    if (!Txn_) {
+        THROW("No active transaction to commit");
+    }
+    
+    try {
+        Txn_->commit();
+        LOG_DEBUG("Transaction committed");
+        Txn_.reset();
+    } catch (const std::exception& ex) {
+        RETHROW(ex, "Failed to commit transaction");
+    }
+}
+
+void TDbClient::Rollback() {
+    std::lock_guard<std::mutex> lock(Mutex_);
+    if (!Txn_) {
+        THROW("No active transaction to rollback");
+    }
+    
+    try {
+        Txn_->abort();
+        LOG_DEBUG("Transaction rolled back");
+        Txn_.reset();
+    } catch (const std::exception& ex) {
+        RETHROW(ex, "Failed to rollback transaction");
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TTransaction::TTransaction(TDbClientPtr client, std::shared_ptr<pqxx::transaction<>> Txn)
+    : Client_(std::move(client)),
+      Txn_(Txn)
+{}
+
+TTransaction::~TTransaction() {
+    try {
+        if (Client_ && Client_->Txn_ && Client_->Txn_ == Txn_) {
+            LOG_WARNING("Transaction was not explicitly committed or rolled back, rolling back");
+            Client_->Rollback();
+        }
+    } catch (const std::exception& ex) {
+        LOG_ERROR("Failed to rollback transaction in destructor: {}", ex.what());
+    }
+}
+
+void TTransaction::Commit() {
+    Client_->Commit();
+}
+
+void TTransaction::Rollback() {
+    Client_->Rollback();
 }
 
 

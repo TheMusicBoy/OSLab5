@@ -18,9 +18,13 @@ public:
 
     bool Unref(int n = 1) const;
 
+    int GetRefCount() const noexcept;
+
     void WeakRef() const noexcept;
 
     bool WeakUnref() const;
+
+    int GetWeakRefCount() const noexcept;
 
 private:
     mutable std::atomic<int> StrongRefCount_ = 1;
@@ -100,15 +104,15 @@ inline void Ref(T* obj, int n = 1) {
 }
 
 template <class T>
-inline bool TryRef(T* obj) {
-    return TRefCountedHelper<T>::GetRefCounter(obj)->TryRef();
-}
-
-template <class T>
 inline void Unref(T* obj, int n = 1) {
     if (TRefCountedHelper<T>::GetRefCounter(obj)->Unref(n)) {
         TRefCountedHelper<T>::Destruct(obj);
     }
+}
+
+template <class T>
+inline bool TryRef(T* obj) {
+    return TRefCountedHelper<T>::GetRefCounter(obj)->TryRef();
 }
 
 template <class T>

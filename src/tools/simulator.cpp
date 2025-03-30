@@ -1,4 +1,4 @@
-#include <config.h>
+#include <service/config.h>
 
 #include <ipc/serial_port.h>
 #include <common/logging.h>

@@ -55,12 +55,23 @@ DECLARE_REFCOUNTED(TStorageConfig);
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct TLogDestinationConfig
+    : public NCommon::TConfigBase
+{
+    NLogging::ELevel Level = NLogging::ELevel::Info;
+    std::string Path;
+
+    void Load(const nlohmann::json& data) override;
+};
+
+DECLARE_REFCOUNTED(TLogDestinationConfig);
 struct TConfig
     : public NCommon::TConfigBase
 {
     unsigned MesureDelay = 100;
 
     std::filesystem::path AssetsPath = "/home/painfire/assets";
+    std::vector<TLogDestinationConfigPtr> LogDestinations;
 
     NIpc::TSerialConfigPtr SerialConfig;
     TStorageConfigPtr StorageConfig;

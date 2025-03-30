@@ -45,11 +45,12 @@ private:
 
     void Job();
 
-
     NRpc::THttpServer HttpServer_;
 
     size_t ThreadCount_;
     NCommon::TThreadPoolPtr ThreadPool_;
+
+    inline static const std::string LoggingSource = "Rpc";
 
 };
 

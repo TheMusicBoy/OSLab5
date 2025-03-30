@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperature Monitor Dashboard</title>
+    <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+    <div class="header">
+        <h1>Temperature Monitoring System</h1>
+        <p>Welcome to the temperature monitoring dashboard. View real-time temperature readings and historical data averages.</p>
+    </div>
+
+    <div class="dashboard">
+        <div class="card">
+            <h2>Raw Temperature Data</h2>
+            <p>View the most recent temperature readings captured by the system in real-time.</p>
+            <p>This view shows individual temperature readings as they are recorded by the sensor.</p>
+            <div class="card-footer">
+                <a href="/list/raw" class="btn">View Raw Data</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Hourly Averages</h2>
+            <p>See temperature trends aggregated on an hourly basis.</p>
+            <p>Useful for identifying temperature patterns throughout the day.</p>
+            <div class="card-footer">
+                <a href="/list/hour" class="btn">View Hourly Data</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Daily Averages</h2>
+            <p>Analyze long-term temperature trends with daily average readings.</p>
+            <p>Perfect for monitoring temperature patterns over extended periods.</p>
+            <div class="card-footer">
+                <a href="/list/day" class="btn">View Daily Data</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

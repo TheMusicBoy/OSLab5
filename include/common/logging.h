@@ -1,17 +1,19 @@
 #pragma once
 
 #include <common/format.h>
-
+#include <chrono>
+#include <string>
+#include <memory>
+#include <vector>
+#include <mutex>
 #include <fstream>
 #include <iostream>
-#include <mutex>
-#include <string>
 
-namespace NCommon {
+namespace NLogging {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-enum class ELogLevel {
+enum class ELevel {
     Debug,
     Info,
     Warning,
@@ -19,105 +21,148 @@ enum class ELogLevel {
     Fatal
 };
 
+std::string LevelToString(ELevel level);
+
 ////////////////////////////////////////////////////////////////////////////////
 
-class TLogger;
+struct TLogEntry {
+    std::chrono::system_clock::time_point timestamp;
+    ELevel level;
+    std::string source;
+    std::string message;
+    
+    TLogEntry(
+        std::chrono::system_clock::time_point ts = std::chrono::system_clock::now(),
+        ELevel lvl = ELevel::Info,
+        std::string src = "",
+        std::string msg = ""
+    ) : timestamp(ts), level(lvl), source(std::move(src)), message(std::move(msg)) {}
+};
 
-TLogger& GetLogger();
-
-class TLogger {
+class THandler {
 public:
-    void SetLevel(ELogLevel level);
+    virtual ~THandler() = default;
     
-    bool SetOutput(const std::string& filePath);
+    virtual void Handle(const TLogEntry& entry) = 0;
     
-    void SetOutputToStdout();
+    void SetLevel(ELevel level) {
+        level_ = level;
+    }
     
-    void SetOutputToStderr();
+    bool ShouldLog(ELevel level) const {
+        return level >= level_;
+    }
     
-    void CloseOutput();
+protected:
+    ELevel level_ = ELevel::Info;
+};
 
-    template<typename... Args>
-    void Debug(const std::string& format, Args&&... args);
+class TStreamHandler : public THandler {
+public:
+    explicit TStreamHandler(std::ostream& stream);
     
-    template<typename... Args>
-    void Info(const std::string& format, Args&&... args);
+    void Handle(const TLogEntry& entry) override;
     
-    template<typename... Args>
-    void Warning(const std::string& format, Args&&... args);
-    
-    template<typename... Args>
-    void Error(const std::string& format, Args&&... args);
-    
-    template<typename... Args>
-    void Fatal(const std::string& format, Args&&... args);
-
 private:
-    TLogger();
+    std::ostream& stream_;
+};
+
+class TFileHandler : public THandler {
+public:
+    explicit TFileHandler(const std::string& filename);
+    ~TFileHandler() override;
     
-    friend TLogger& GetLogger();
+    void Handle(const TLogEntry& entry) override;
     
-    template<typename... Args>
-    void Log(ELogLevel level, const std::string& format, Args&&... args);
+    void SetMaxFileSize(size_t maxSizeBytes);
     
-    std::string LevelToString(ELogLevel level);
+    void SetMaxBackupCount(size_t count);
     
-    ELogLevel currentLevel = ELogLevel::Info;
+private:
+    void RotateLogFile();
     
-    std::ostream* output = &std::cout;
-    
-    std::ofstream fileOutput;
-    
-    std::mutex mutex;
+    std::ofstream file_;
+    std::string filename_;
+    size_t maxFileSize_ = 10 * 1024 * 1024; // 10 MB default
+    size_t maxBackupCount_ = 5;
+    size_t currentFileSize_ = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
-template<typename... Args>
-void TLogger::Debug(const std::string& format, Args&&... args) {
-    Log(ELogLevel::Debug, format, std::forward<Args>(args)...);
-}
-
-template<typename... Args>
-void TLogger::Info(const std::string& format, Args&&... args) {
-    Log(ELogLevel::Info, format, std::forward<Args>(args)...);
-}
-
-template<typename... Args>
-void TLogger::Warning(const std::string& format, Args&&... args) {
-    Log(ELogLevel::Warning, format, std::forward<Args>(args)...);
-}
-
-template<typename... Args>
-void TLogger::Error(const std::string& format, Args&&... args) {
-    Log(ELogLevel::Error, format, std::forward<Args>(args)...);
-}
-
-template<typename... Args>
-void TLogger::Fatal(const std::string& format, Args&&... args) {
-    Log(ELogLevel::Fatal, format, std::forward<Args>(args)...);
-}
-
-template<typename... Args>
-void TLogger::Log(ELogLevel level, const std::string& format, Args&&... args) {
-    if (level < currentLevel) {
-        return;
+class TLogManager {
+public:
+    static TLogManager& GetInstance();
+    
+    void AddHandler(std::shared_ptr<THandler> handler);
+    
+    void RemoveHandler(std::shared_ptr<THandler> handler);
+    
+    void Log(const TLogEntry& entry);
+    
+    template<typename... Args>
+    void Log(const std::string& source, ELevel level, const std::string& format, Args&&... args) {
+        TLogEntry entry;
+        entry.timestamp = std::chrono::system_clock::now();
+        entry.level = level;
+        entry.source = source;
+        entry.message = NCommon::Format(format, std::forward<Args>(args)...);
+        
+        Log(entry);
     }
     
-    std::lock_guard<std::mutex> lock(mutex);
+    template<typename... Args>
+    void Debug(const std::string& source, const std::string& format, Args&&... args) {
+        Log(source, ELevel::Debug, format, std::forward<Args>(args)...);
+    }
     
-    *output << "[" << LevelToString(level) << "] "
-            << EscapeSymbols(Format(format, std::forward<Args>(args)...)) << std::endl;
+    template<typename... Args>
+    void Info(const std::string& source, const std::string& format, Args&&... args) {
+        Log(source, ELevel::Info, format, std::forward<Args>(args)...);
+    }
+    
+    template<typename... Args>
+    void Warning(const std::string& source, const std::string& format, Args&&... args) {
+        Log(source, ELevel::Warning, format, std::forward<Args>(args)...);
+    }
+    
+    template<typename... Args>
+    void Error(const std::string& source, const std::string& format, Args&&... args) {
+        Log(source, ELevel::Error, format, std::forward<Args>(args)...);
+    }
+    
+    template<typename... Args>
+    void Fatal(const std::string& source, const std::string& format, Args&&... args) {
+        Log(source, ELevel::Fatal, format, std::forward<Args>(args)...);
+    }
+    
+private:
+    TLogManager();
+    
+    std::vector<std::shared_ptr<THandler>> handlers_;
+    std::mutex mutex_;
+};
+
+std::shared_ptr<THandler> CreateStdoutHandler();
+std::shared_ptr<THandler> CreateStderrHandler();
+std::shared_ptr<THandler> CreateFileHandler(const std::string& filename);
+
+inline TLogManager& GetLogManager() {
+    return TLogManager::GetInstance();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define LOG_DEBUG(format, ...) NCommon::GetLogger().Debug(format, ##__VA_ARGS__)
-#define LOG_INFO(format, ...) NCommon::GetLogger().Info(format, ##__VA_ARGS__)
-#define LOG_WARNING(format, ...) NCommon::GetLogger().Warning(format, ##__VA_ARGS__)
-#define LOG_ERROR(format, ...) NCommon::GetLogger().Error(format, ##__VA_ARGS__)
-#define LOG_FATAL(format, ...) NCommon::GetLogger().Fatal(format, ##__VA_ARGS__)
+} // namespace NLogging
 
 ////////////////////////////////////////////////////////////////////////////////
 
-} // namespace NCommon
+#define LOG_DEBUG(format, ...) NLogging::GetLogManager().Debug(LoggingSource, format, ##__VA_ARGS__)
+#define LOG_INFO(format, ...) NLogging::GetLogManager().Info(LoggingSource, format, ##__VA_ARGS__)
+#define LOG_WARNING(format, ...) NLogging::GetLogManager().Warning(LoggingSource, format, ##__VA_ARGS__)
+#define LOG_ERROR(format, ...) NLogging::GetLogManager().Error(LoggingSource, format, ##__VA_ARGS__)
+#define LOG_FATAL(format, ...) NLogging::GetLogManager().Fatal(LoggingSource, format, ##__VA_ARGS__)
+
+////////////////////////////////////////////////////////////////////////////////
+
+inline const std::string LoggingSource = "Main";

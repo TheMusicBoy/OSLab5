@@ -88,7 +88,7 @@ public:
 private:
     T* ptr_;
 
-    explicit TIntrusivePtr(T* object, bool bump = true)
+    explicit TIntrusivePtr(T* object, bool bump)
         : ptr_(object)
     {
         if (ptr_ && bump) {

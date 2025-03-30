@@ -179,12 +179,12 @@ public:
 class TErrorHandler
     : public THandlerBase {
 public:
-    TErrorHandler(const std::filesystem::path& errorPage);
+    TErrorHandler(const std::string& errorPage);
 
     std::string GetAnswer() const;
 
 private:
-    std::filesystem::path ErrorPage_;
+    std::string ErrorPage_;
     
 };
 

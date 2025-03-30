@@ -2,32 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Temperature Readings</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperature {{ period }} - Monitoring System</title>
     <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
-    <h1>
-        Temperature Readings 
-        <span class="period-title">({{ period }})</span>
-    </h1>
-    <div class="count-info">Showing {{ readings|length }} readings</div>
+    <div class="header">
+        <h1>Temperature Monitoring System</h1>
+        <p>View and analyze temperature readings collected by the system.</p>
+    </div>
 
     <div class="period-nav">
-        <a href="/list/raw" {% if period == "Raw Data" %}class="active"{% endif %}>
-            Raw Data
-        </a>
-        <a href="/list/hour" {% if period == "Hourly Averages" %}class="active"{% endif %}>
-            Hourly Averages
-        </a>
-        <a href="/list/day" {% if period == "Daily Averages" %}class="active"{% endif %}>
-            Daily Averages
-        </a>
+        <a href="/list/raw" {% if period == "Raw Data" %}class="active"{% endif %}>Raw Data</a>
+        <a href="/list/hour" {% if period == "Hourly Averages" %}class="active"{% endif %}>Hourly Averages</a>
+        <a href="/list/day" {% if period == "Daily Averages" %}class="active"{% endif %}>Daily Averages</a>
     </div>
+
+    <h2>{{ period }}</h2>
+    <div class="count-info">Showing {{ readings|length }} temperature readings.</div>
 
     <table class="readings-table">
         <thead>
             <tr>
-                <th>Timestamp (UTC)</th>
+                <th>Timestamp</th>
                 <th>Temperature (°C)</th>
             </tr>
         </thead>
@@ -35,14 +32,19 @@
             {% for reading in readings %}
             <tr>
                 <td>{{ reading.timestamp }}</td>
-                <td class="temperature">{{ reading.temperature | round(2) }}</td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="2">No readings available</td>
+                <td class="temperature">{{ reading.temperature|round(2) }}°C</td>
             </tr>
             {% endfor %}
+            {% if readings|length == 0 %}
+            <tr>
+                <td colspan="2" style="text-align: center;">No readings available</td>
+            </tr>
+            {% endif %}
         </tbody>
     </table>
+
+    <div class="card-footer" style="margin-top: 20px;">
+        <a href="/" class="btn">Back to Dashboard</a>
+    </div>
 </body>
 </html>

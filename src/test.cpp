@@ -1,144 +1,89 @@
-#include <ipc/db_client.h>
 #include <common/logging.h>
-#include <common/getopts.h>
+#include <thread>
+#include <vector>
+#include <iostream>
+#include <filesystem>
 
-#include <chrono>
+int main() {
+    std::cout << "Starting logging test...\n";
 
-class TTestDB {
-private:
-    NIpc::TDbClientPtr DbClient_;
-    const std::string TableName_ = "temperatures";
+    // Test 1: Basic console logging
+    std::cout << "\n=== Test 1: Basic console logging ===\n";
     
-public:
-    TTestDB(NIpc::TDataBaseConfigPtr dbConfig)
-        : DbClient_(NCommon::New<NIpc::TDbClient>(dbConfig))
-    {
-        DbClient_->Connect();
-        ClearTable();
-        CreateTable();
-    }
+    // Add a stdout handler instead of the default stderr
+    auto stdoutHandler = NLogging::CreateStdoutHandler();
+    stdoutHandler->SetLevel(NLogging::ELevel::Debug); // Show all logs
+    NLogging::GetLogManager().AddHandler(stdoutHandler);
 
-    void ClearTable() {
-        try {
-            DbClient_->ExecuteQuery("DELETE FROM " + TableName_);
-        } catch (const std::exception& ex) {
-            LOG_INFO("Table clear wasn't needed: {}", ex.what());
-        }
-    }
+    // Log at different levels
+    NLogging::GetLogManager().Debug("Test", "This is a debug message");
+    NLogging::GetLogManager().Info("Test", "This is an info message");
+    NLogging::GetLogManager().Warning("Test", "This is a warning message");
+    NLogging::GetLogManager().Error("Test", "This is an error message");
+    NLogging::GetLogManager().Fatal("Test", "This is a fatal message");
 
-    void CreateTable() {
-        try {
-            DbClient_->ExecuteQuery(
-                "CREATE TABLE IF NOT EXISTS " + TableName_ + " ("
-                "    id SERIAL PRIMARY KEY,"
-                "    timestamp TIMESTAMPTZ NOT NULL,"
-                "    temperature DOUBLE PRECISION NOT NULL"
-                ")"
-            );
-            LOG_INFO("Checked/Created temperatures table");
-        } catch(const std::exception& ex) {
-            LOG_ERROR("CreateTable failed: {}", ex.what());
-            throw;
-        }
-    }
-
-    void TestInsertSelect() {
-        try {
-            // Insert test data
-            NIpc::TDbClient::TParamMap values{
-                {"timestamp", "NOW()"},
-                {"temperature", "21.5"}
-            };
-            
-            DbClient_->InsertRow(TableName_, values);
-            
-            // Test selection and validate
-            auto result = DbClient_->SelectRows(TableName_, "temperature > 20");
-            LOG_INFO("Got {} rows from test table", result.size());
-            ASSERT(!result.empty(), "No rows returned from test table");
-            
-            // Delete test data
-            DbClient_->DeleteRow(TableName_, "temperature = 21.5");
-            
-            // Verify deletion
-            auto resultAfterDelete = DbClient_->SelectRows(TableName_, "temperature = 21.5");
-            ASSERT(resultAfterDelete.empty(), "Data wasn't deleted");
-            
-        } catch(const std::exception& ex) {
-            LOG_ERROR("Insert/Delete test failed: {}", ex.what());
-            throw;
-        }
-    }
-
-    void TestTransaction() {
-        try {
-            auto tx = DbClient_->BeginTransaction();
-            
-            // Insert within transaction
-            NIpc::TDbClient::TParamMap values{
-                {"timestamp", "NOW()"},
-                {"temperature", "19.5"}
-            };
-            tx.InsertRow(TableName_, values);
-            tx.Commit();
-            
-            LOG_INFO("Transaction committed successfully");
-        } catch(const std::exception& ex) {
-            LOG_ERROR("Transaction test failed: {}", ex.what());
-            throw;
-        }
-    }
-
-    void TestSelectAfterTransaction() {
-        try {
-            auto result = DbClient_->SelectRows(TableName_, "temperature = 19.5");
-            
-            LOG_INFO("After transaction: got {} matching rows", result.size());
-            ASSERT(result.size() == 1, 
-                   "Should find exactly 1 row after transaction commit");
-
-            // After validation
-            DbClient_->DeleteRow(TableName_, "temperature = 19.5");
-            
-            // Verify cleanup
-            auto postDeleteResult = DbClient_->SelectRows(TableName_, "temperature = 19.5");
-            ASSERT(postDeleteResult.empty(), "Transaction cleanup failed");
-            
-        } catch(const std::exception& ex) {
-            LOG_ERROR("Post-transaction test failed: {}", ex.what());
-            throw;
-        }
-    }
-};
-
-int main(int argc, const char* argv[]) {
-    NCommon::GetOpts opts;
-    opts.AddOption('h', "help", "Show help message");
-    opts.AddOption('c', "config", "Path to config file", true);
-
-    try {
-        opts.Parse(argc, argv);
-        
-        if (opts.Has('h')) {
-            std::cerr << opts.Help();
-            return 0;
-        }
-
-        ASSERT(opts.Has('c'), "Config file is required");
-        
-        auto config = NCommon::New<NIpc::TDataBaseConfig>();
-        config->LoadFromFile(opts.Get("config"));
-
-        TTestDB tester(config);
-        tester.TestInsertSelect();
-        tester.TestTransaction();
-        tester.TestSelectAfterTransaction();
-        
-        LOG_INFO("All database tests completed successfully");
-    } catch(std::exception& ex) {
-        LOG_ERROR("Got an error: {}", ex);
-        return 1;
+    // Test 2: File logging
+    std::cout << "\n=== Test 2: File logging ===\n";
+    
+    const std::string logFilePath = "test_log.log";
+    // Delete log file if it exists
+    if (std::filesystem::exists(logFilePath)) {
+        std::filesystem::remove(logFilePath);
     }
     
+    auto fileHandler = NLogging::CreateFileHandler(logFilePath);
+    fileHandler->SetLevel(NLogging::ELevel::Info); // Only info and above
+    NLogging::GetLogManager().AddHandler(fileHandler);
+    
+    std::cout << "Logging to file: " << logFilePath << "\n";
+    
+    NLogging::GetLogManager().Debug("FileTest", "This debug message should NOT appear in the file");
+    NLogging::GetLogManager().Info("FileTest", "This info message should appear in the file");
+    NLogging::GetLogManager().Error("FileTest", "This error with data: {}", 42);
+    
+    // Test 3: Log rotation
+    std::cout << "\n=== Test 3: Log rotation ===\n";
+    
+    // Cast to get access to file-specific methods
+    auto rotatingFileHandler = NLogging::CreateFileHandler("rotating.log");
+    auto* fileHandlerPtr = dynamic_cast<NLogging::TFileHandler*>(rotatingFileHandler.get());
+    if (fileHandlerPtr) {
+        fileHandlerPtr->SetMaxFileSize(1024); // 1KB max size
+        fileHandlerPtr->SetMaxBackupCount(3); // Keep 3 backup files
+    }
+    
+    NLogging::GetLogManager().AddHandler(rotatingFileHandler);
+    
+    std::cout << "Testing log rotation (check rotating.log files)\n";
+    
+    // Write enough data to trigger multiple rotations
+    for (int i = 0; i < 100; i++) {
+        NLogging::GetLogManager().Info("Rotation", "Log line {}: This is a test message that will contribute to log rotation", i);
+    }
+    
+    // Test 4: Thread safety
+    std::cout << "\n=== Test 4: Thread safety ===\n";
+    
+    const int threadCount = 4;
+    const int messagesPerThread = 25;
+    
+    std::vector<std::thread> threads;
+    for (int t = 0; t < threadCount; t++) {
+        threads.emplace_back([t, messagesPerThread]() {
+            for (int i = 0; i < messagesPerThread; i++) {
+                NLogging::GetLogManager().Info(
+                    "Thread" + std::to_string(t),
+                    "Message {} from thread {}", i, t
+                );
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+        });
+    }
+    
+    for (auto& thread : threads) {
+        thread.join();
+    }
+    
+    std::cout << "\nLogging test completed successfully!\n";
     return 0;
 }

@@ -66,7 +66,6 @@ __pid_t CreateSubprocess(std::string cmd) {
 
         execvp(args[0], args.data());
 
-        NCommon::GetLogger().SetOutput("subprocess.log");
         LOG_ERROR("CreateProcess failed: {}", Errno);
         exit(EXIT_FAILURE);
     }

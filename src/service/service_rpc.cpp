@@ -1,5 +1,4 @@
-#include <service_rpc.h>
-
+#include "service_rpc.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -20,9 +19,19 @@ void TRpcServer::Start() {
 
 void TRpcServer::Worker() {
     auto job = NCommon::Bind(&TRpcServer::Job, MakeWeak(this));
-    while (!job()); 
+    while (true) {
+        try {
+            if (job()) {
+                break;
+            }
+        } catch (const std::exception& ex) {
+            LOG_ERROR("Error in worker: {}", ex.what());
+        }
+    }
 }
 
 void TRpcServer::Job() {
     HttpServer_.ProcessClient();
 }
+
+////////////////////////////////////////////////////////////////////////////////

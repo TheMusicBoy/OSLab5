@@ -1,6 +1,6 @@
-#include <common/logging.h>
+#include "config.h"
 
-#include <config.h>
+#include <common/logging.h>
 
 namespace NConfig {
 
@@ -34,10 +34,30 @@ void TStorageConfig::Load(const nlohmann::json& data) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void TLogDestinationConfig::Load(const nlohmann::json& data) {
+    Path = TConfigBase::LoadRequired<std::string>(data, "path");
+    
+    std::string levelStr = TConfigBase::Load<std::string>(data, "level", "Info");
+    if (levelStr == "Debug") Level = NLogging::ELevel::Debug;
+    else if (levelStr == "Info") Level = NLogging::ELevel::Info;
+    else if (levelStr == "Warning") Level = NLogging::ELevel::Warning;
+    else if (levelStr == "Error") Level = NLogging::ELevel::Error;
+    else if (levelStr == "Fatal") Level = NLogging::ELevel::Fatal;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void TConfig::Load(const nlohmann::json& data) {
     MesureDelay = TConfigBase::Load<unsigned>(data, "mesure_delay", MesureDelay);
 
     AssetsPath = TConfigBase::Load<std::string>(data, "assets_path", "/home/painfire/assets");
+    if (data.contains("logging") && data["logging"].is_array()) {
+        for (const auto& dest : data["logging"]) {
+            auto logConfig = NCommon::New<TLogDestinationConfig>();
+            logConfig->Load(dest);
+            LogDestinations.push_back(logConfig);
+        }
+    }
 
     SerialConfig = TConfigBase::LoadRequired<NIpc::TSerialConfig>(data, "serial");
     StorageConfig = TConfigBase::LoadRequired<TStorageConfig>(data, "storage");

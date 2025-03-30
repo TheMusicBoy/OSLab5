@@ -13,15 +13,6 @@ void TRefCounter::Ref(int n) const noexcept {
     VERIFY(WeakRefCount_.load(std::memory_order_relaxed) > 0);
 }
 
-bool TRefCounter::TryRef() const noexcept {
-    auto value = StrongRefCount_.load(std::memory_order_relaxed);
-    VERIFY(value >= 0);
-    VERIFY(WeakRefCount_.load(std::memory_order_relaxed) > 0);
-
-    while (value != 0 && !StrongRefCount_.compare_exchange_weak(value, value + 1));
-    return value != 0;
-}
-
 bool TRefCounter::Unref(int n) const {
     VERIFY(n >= 0);
 
@@ -33,6 +24,19 @@ bool TRefCounter::Unref(int n) const {
     } else {
         return false;
     }
+}
+
+int TRefCounter::GetRefCount() const noexcept {
+    return StrongRefCount_.load(std::memory_order_relaxed);
+}
+
+bool TRefCounter::TryRef() const noexcept {
+    auto value = StrongRefCount_.load(std::memory_order_relaxed);
+    VERIFY(value >= 0);
+    VERIFY(WeakRefCount_.load(std::memory_order_relaxed) > 0);
+
+    while (value != 0 && !StrongRefCount_.compare_exchange_weak(value, value + 1));
+    return value != 0;
 }
 
 void TRefCounter::WeakRef() const noexcept {
@@ -49,6 +53,10 @@ bool TRefCounter::WeakUnref() const {
     } else {
         return false;
     }
+}
+
+int TRefCounter::GetWeakRefCount() const noexcept {
+    return WeakRefCount_.load(std::memory_order_relaxed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -1,12 +1,11 @@
-#include <service.h>
-#include <service_rpc.h>
+#include <service/service.h>
+#include <service/service_rpc.h>
 
 #include <common/logging.h>
 #include <common/exception.h>
 #include <common/getopts.h>
 
 #include <iostream>
-#include <service.h>
 
 int main(int argc, const char* argv[]) {
     NCommon::GetOpts opts;
@@ -31,6 +30,12 @@ int main(int argc, const char* argv[]) {
         ASSERT(opts.Has('c') || opts.Has("config"), "Config is required");
         NConfig::TConfigPtr config = NCommon::New<NConfig::TConfig>();
         config->LoadFromFile(opts.Get("config"));
+
+        for (const auto& c : config->LogDestinations) {
+            auto fileHandler = NLogging::CreateFileHandler(c->Path);
+            fileHandler->SetLevel(c->Level);
+            NLogging::GetLogManager().AddHandler(fileHandler);
+        }
 
         std::function<std::optional<TReading>(double)> processor;
 
@@ -63,15 +68,16 @@ int main(int argc, const char* argv[]) {
 
         TRpcServerPtr server = NCommon::New<TRpcServer>("0.0.0.0", 8080, 5);
 
-        TServicePtr service = NCommon::New<TService>(config, processor);
+        auto service = NCommon::New<NService::TService>(config, processor);
 
         service->Start();
+        
+        server->RegisterHandler("GET", "/", NRpc::MakeHandler(&NService::TService::HandleMainPage, MakeWeak(&*service)));
+        server->RegisterHandler("GET", "/assets/.*", NRpc::MakeHandler(&NService::TService::HandleAssets, MakeWeak(&*service)));
 
-        server->RegisterHandler("GET", "/list/raw", NRpc::MakeHandler(&TService::HandleRawReadings, MakeWeak(&*service)));
-        server->RegisterHandler("GET", "/list/hour", NRpc::MakeHandler(&TService::HandleHourlyAverages, MakeWeak(&*service)));
-        server->RegisterHandler("GET", "/list/day", NRpc::MakeHandler(&TService::HandleDailyAverages, MakeWeak(&*service)));
-
-        server->RegisterHandler("GET", "/assets/.*", NRpc::MakeHandler(&TService::HandleAssets, MakeWeak(&*service)));
+        server->RegisterHandler("GET", "/list/raw", NRpc::MakeHandler(&NService::TService::HandleRawReadings, MakeWeak(&*service)));
+        server->RegisterHandler("GET", "/list/hour", NRpc::MakeHandler(&NService::TService::HandleHourlyAverages, MakeWeak(&*service)));
+        server->RegisterHandler("GET", "/list/day", NRpc::MakeHandler(&NService::TService::HandleDailyAverages, MakeWeak(&*service)));
 
         server->Start();
 

@@ -23,6 +23,8 @@ namespace {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+inline const std::string LoggingSource = "SerialPort";
+
 bool ReadToNl(char* buffer, std::string& data) {
     if (char* nl = strchr(buffer, '\n')) {
         *nl = '\0';
