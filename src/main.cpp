@@ -7,6 +7,22 @@
 
 #include <iostream>
 
+namespace {
+
+////////////////////////////////////////////////////////////////////////////////
+
+void SetupLogging(NConfig::TConfigPtr config) {
+    for (const auto& dst : config->LogDestinations) {
+        auto fileHandler = NLogging::CreateFileHandler(dst->Path);
+        fileHandler->SetLevel(dst->Level);
+        NLogging::GetLogManager().AddHandler(fileHandler);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+} // namespace
+
 int main(int argc, const char* argv[]) {
     NCommon::GetOpts opts;
     opts.AddOption('h', "help", "Show help message");
@@ -17,33 +33,24 @@ int main(int argc, const char* argv[]) {
     try {
         opts.Parse(argc, argv);
 
-        if (opts.Has('h') || opts.Has("help")) {
+        if (opts.Has("help")) {
             std::cerr << opts.Help();
             return 0;
         }
 
-        if (opts.Has('v') || opts.Has("version")) {
-            std::cerr << "Lab3 Service v2.0\n";
+        if (opts.Has("version")) {
+            std::cerr << "Lab5 Service v1.2\n";
             return 0;
         }
 
-        ASSERT(opts.Has('c') || opts.Has("config"), "Config is required");
+        ASSERT(opts.Has("config"), "Config is required");
         NConfig::TConfigPtr config = NCommon::New<NConfig::TConfig>();
         config->LoadFromFile(opts.Get("config"));
 
-        for (const auto& c : config->LogDestinations) {
-            auto fileHandler = NLogging::CreateFileHandler(c->Path);
-            fileHandler->SetLevel(c->Level);
-            NLogging::GetLogManager().AddHandler(fileHandler);
-        }
-
         std::function<std::optional<TReading>(double)> processor;
 
-        if (opts.Has('a') || opts.Has("accelerate")) {
-            double boost = 1;
-
-            if (opts.Has('a')) boost = std::stod(opts.Get('a'));
-            if (opts.Has("accelerate")) boost = std::stod(opts.Get("accelerate"));
+        if (opts.Has("accelerate")) {
+            double boost = std::stod(opts.Get("accelerate"));
 
             auto startTime = std::chrono::system_clock::now();
 
@@ -67,19 +74,10 @@ int main(int argc, const char* argv[]) {
         }
 
         TRpcServerPtr server = NCommon::New<TRpcServer>("0.0.0.0", 8080, 5);
-
         auto service = NCommon::New<NService::TService>(config, processor);
-
-        service->Start();
-        
-        server->RegisterHandler("GET", "/", NRpc::MakeHandler(&NService::TService::HandleMainPage, MakeWeak(&*service)));
-        server->RegisterHandler("GET", "/assets/.*", NRpc::MakeHandler(&NService::TService::HandleAssets, MakeWeak(&*service)));
-
-        server->RegisterHandler("GET", "/list/raw", NRpc::MakeHandler(&NService::TService::HandleRawReadings, MakeWeak(&*service)));
-        server->RegisterHandler("GET", "/list/hour", NRpc::MakeHandler(&NService::TService::HandleHourlyAverages, MakeWeak(&*service)));
-        server->RegisterHandler("GET", "/list/day", NRpc::MakeHandler(&NService::TService::HandleDailyAverages, MakeWeak(&*service)));
-
+        server->Setup(service);
         server->Start();
+        service->Start();
 
         LOG_INFO("Service started. Press Ctrl+C to exit.");
         while (true) {

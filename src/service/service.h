@@ -7,7 +7,6 @@
 #include <common/periodic_executor.h>
 #include <common/threadpool.h>
 #include <ipc/serial_port.h>
-#include <ipc/db_client.h>
 
 
 namespace NService {

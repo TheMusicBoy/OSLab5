@@ -8,6 +8,15 @@ TRpcServer::TRpcServer(const std::string& interfaceIp, const short int port, siz
       ThreadPool_(NCommon::New<NCommon::TThreadPool>(ThreadCount_))
 {}
 
+void TRpcServer::Setup(NService::TServicePtr service) {
+    RegisterHandler("GET", "/", NRpc::MakeHandler(&NService::TService::HandleMainPage, MakeWeak(&*service)));
+    RegisterHandler("GET", "/assets/.*", NRpc::MakeHandler(&NService::TService::HandleAssets, MakeWeak(&*service)));
+    RegisterHandler("GET", "/list/raw", NRpc::MakeHandler(&NService::TService::HandleRawReadings, MakeWeak(&*service)));
+    RegisterHandler("GET", "/list/hour", NRpc::MakeHandler(&NService::TService::HandleHourlyAverages, MakeWeak(&*service)));
+    RegisterHandler("GET", "/list/day", NRpc::MakeHandler(&NService::TService::HandleDailyAverages, MakeWeak(&*service)));
+
+}
+
 void TRpcServer::Start() {
     for (size_t iter = 0; iter < ThreadCount_; iter++) {
         ThreadPool_->enqueue(NCommon::Bind(

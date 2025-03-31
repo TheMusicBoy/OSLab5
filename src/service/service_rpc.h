@@ -1,3 +1,7 @@
+#pragma once
+
+#include <service/service.h>
+
 #include <rpc/http_server.h>
 
 #include <common/intrusive_ptr.h>
@@ -13,8 +17,11 @@ class TRpcServer
 public:
     TRpcServer(const std::string& interfaceIp, const short int port, size_t threadCount);
 
+    void Setup(NService::TServicePtr service);
+
     void Start();
 
+private:
     template<typename HandlerFunc>
     void RegisterHandler(const std::string& method, const std::string& url, HandlerFunc&& handler, bool isRaw = false) {
         auto wrappedHandler = [handler = std::forward<HandlerFunc>(handler)](const NRpc::TRequest& req) {
@@ -40,7 +47,6 @@ public:
         HttpServer_.RegisterHandler(NRpc::THandler(method, url, wrappedHandler, isRaw));
     }
 
-private:
     void Worker();
 
     void Job();

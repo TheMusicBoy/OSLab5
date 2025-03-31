@@ -28,8 +28,6 @@ endif()
 add_subdirectory(tools)
 
 set(SRC
-    ${SRCROOT}/service/assets.cpp
-    ${SRCROOT}/service/service_rpc.cpp
     ${SRCROOT}/test.cpp
 )
 

@@ -7,8 +7,6 @@
 #include <common/refcounted.h>
 #include <common/intrusive_ptr.h>
 
-#include <nlohmann/json.hpp>
-
 #include <filesystem>
 
 namespace NConfig {
