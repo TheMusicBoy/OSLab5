@@ -123,14 +123,8 @@ let updateTimer = null;
 const updateStatusElement = document.getElementById('update-status');
 const updateIntervalSelect = document.getElementById('update-interval');
 
-if (localStorage.getItem('temperatureUpdateInterval')) {
-    updateInterval = parseInt(localStorage.getItem('temperatureUpdateInterval'));
-    updateIntervalSelect.value = updateInterval;
-}
-
-updateIntervalSelect.addEventListener('change', function() {
-    updateInterval = parseInt(this.value);
-    localStorage.setItem('temperatureUpdateInterval', updateInterval);
+function setupUpdateInterval(interval) {
+    updateInterval = interval;
     
     if (updateTimer) {
         clearInterval(updateTimer);
@@ -145,7 +139,23 @@ updateIntervalSelect.addEventListener('change', function() {
         updateStatusElement.textContent = 'Auto-update: OFF';
         updateStatusElement.classList.remove('active');
     }
-});
+}
+
+if (localStorage.getItem('temperatureUpdateInterval')) {
+    updateInterval = parseInt(localStorage.getItem('temperatureUpdateInterval'));
+    if (updateIntervalSelect) {
+        updateIntervalSelect.value = updateInterval;
+    }
+    setupUpdateInterval(updateInterval);
+}
+
+if (updateIntervalSelect) {
+    updateIntervalSelect.addEventListener('change', function() {
+        const interval = parseInt(this.value);
+        localStorage.setItem('temperatureUpdateInterval', interval);
+        setupUpdateInterval(interval);
+    });
+}
 
 function updateTable(readings) {
     const tbody = document.getElementById('readings-body');
@@ -209,6 +219,6 @@ function fetchLatestData() {
 
 document.addEventListener('DOMContentLoaded', function() {
     fetchLatestData();
-    
-    updateIntervalSelect.dispatchEvent(new Event('change'));
 });
+
+fetchLatestData();

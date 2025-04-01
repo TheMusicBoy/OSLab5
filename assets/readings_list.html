@@ -1,11 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Temperature {{ period }} - Monitoring System</title>
-    <link rel="stylesheet" href="/assets/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/assets/asset_loader.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCSS('/assets/style.css');
+            loadJS('https://cdn.jsdelivr.net/npm/chart.js')
+                .then(() => {
+                    return loadJS('/assets/load_temperature.js');
+                })
+                .catch(err => {
+                    console.error('Error loading dependencies:', err);
+                });
+        });
+    </script>
 </head>
 <body>
     <div class="header">
@@ -20,7 +33,7 @@
     </div>
 
     <h2>{{ period }}</h2>
-    <div class="count-info">Showing {{ readings|length }} temperature readings.</div>
+    <div class="count-info">Loading count of readings...</div>
 
     <!-- Auto-update controls -->
     <div class="update-controls">
@@ -62,6 +75,5 @@
     <script>
         const chartPeriod = "{{ period }}";
     </script>
-    <script src="/assets/load_temperature.js"></script>
 </body>
 </html>

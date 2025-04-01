@@ -4,7 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Temperature Monitor Dashboard</title>
-    <link rel="stylesheet" href="/assets/style.css">
+    <script src="/assets/asset_loader.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCSS('/assets/style.css');
+        });
+    </script>
 </head>
 <body>
     <div class="header">
