@@ -8,7 +8,8 @@ namespace NConfig {
 
 void TSimulatorConfig::Load(const nlohmann::json& data) {
     SerialConfig = TConfigBase::LoadRequired<NIpc::TSerialConfig>(data, "serial");
-    TimeMultiplier = TConfigBase::Load<double>(data, "time_multiplier", TimeMultiplier);
+    TimeMultiplier = TConfigBase::Load<double>(data, "time_multiplier", 1);
+    DelayMs = TConfigBase::Load<uint32_t>(data, "delay_ms", 100);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

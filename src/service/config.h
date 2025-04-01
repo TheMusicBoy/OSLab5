@@ -16,7 +16,8 @@ namespace NConfig {
 struct TSimulatorConfig
     : public NCommon::TConfigBase
 {
-    double TimeMultiplier = 1.0;
+    double TimeMultiplier;
+    uint32_t DelayMs;
     NIpc::TSerialConfigPtr SerialConfig;
 
     void Load(const nlohmann::json& data) override;

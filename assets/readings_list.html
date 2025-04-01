@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Temperature {{ period }} - Monitoring System</title>
     <link rel="stylesheet" href="/assets/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="header">
@@ -21,6 +22,25 @@
     <h2>{{ period }}</h2>
     <div class="count-info">Showing {{ readings|length }} temperature readings.</div>
 
+    <!-- Auto-update controls -->
+    <div class="update-controls">
+        <label for="update-interval">Auto-update interval:</label>
+        <select id="update-interval">
+            <option value="0">Off</option>
+            <option value="1">1 second</option>
+            <option value="5">5 seconds</option>
+            <option value="10">10 seconds</option>
+            <option value="30">30 seconds</option>
+            <option value="60">1 minute</option>
+        </select>
+        <span id="update-status" class="update-status">Auto-update: OFF</span>
+    </div>
+
+    <!-- Chart container -->
+    <div class="chart-container">
+        <canvas id="temperatureChart"></canvas>
+    </div>
+
     <table class="readings-table">
         <thead>
             <tr>
@@ -28,23 +48,20 @@
                 <th>Temperature (°C)</th>
             </tr>
         </thead>
-        <tbody>
-            {% for reading in readings %}
+        <tbody id="readings-body">
             <tr>
-                <td>{{ reading.timestamp }}</td>
-                <td class="temperature">{{ reading.temperature|round(2) }}°C</td>
+                <td colspan="2" style="text-align: center;">Loading readings...</td>
             </tr>
-            {% endfor %}
-            {% if readings|length == 0 %}
-            <tr>
-                <td colspan="2" style="text-align: center;">No readings available</td>
-            </tr>
-            {% endif %}
         </tbody>
     </table>
 
     <div class="card-footer" style="margin-top: 20px;">
         <a href="/" class="btn">Back to Dashboard</a>
     </div>
+
+    <script>
+        const chartPeriod = "{{ period }}";
+    </script>
+    <script src="/assets/load_temperature.js"></script>
 </body>
 </html>

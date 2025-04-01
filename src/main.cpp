@@ -46,6 +46,7 @@ int main(int argc, const char* argv[]) {
         ASSERT(opts.Has("config"), "Config is required");
         NConfig::TConfigPtr config = NCommon::New<NConfig::TConfig>();
         config->LoadFromFile(opts.Get("config"));
+        SetupLogging(config);
 
         std::function<std::optional<TReading>(double)> processor;
 

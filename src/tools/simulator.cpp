@@ -32,7 +32,7 @@ public:
                 
                 port->Write(response);
                 LOG_INFO("Sent temperature: {}C", temp);
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                std::this_thread::sleep_for(std::chrono::milliseconds(Config_->DelayMs));
             }
         } catch (...) {
             port->Close();

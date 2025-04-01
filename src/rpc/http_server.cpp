@@ -125,6 +125,23 @@ std::string GetHttpStatusName(EHttpCode code) {
     }
 }
 
+bool IsAcceptType(const NRpc::TRequest& request, const std::string& type) {
+    auto requestedTypes = NCommon::Split(request.GetHeader("Accept"), ",");
+    auto typeParts = NCommon::Split(type, "/");
+
+    for (const auto& requestedType : requestedTypes) {
+        auto parts = NCommon::Split(requestedType, "/");
+        if (parts.at(0) != "*" && parts.at(0) != typeParts.at(0)) {
+            continue;
+        }
+        if (parts.at(1) != "*" && parts.at(1) != typeParts.at(1)) {
+            continue;
+        }
+        return true;
+    }
+    return false;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 TResponse& TResponse::SetStatus(EHttpCode httpStatus) {
@@ -209,7 +226,7 @@ std::string TRequest::GetVersion() const {
 }
 
 std::string TRequest::GetHeader(const std::string& key) const {
-    return Headers_.at(key);
+    return Headers_.contains(key) ? Headers_.at(key) : "";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -459,7 +476,7 @@ void THttpServer::ProcessClient() {
 
     auto request = TRequest(recivedString.str());
 
-    std::cout << request.GetMethod() << " " << request.GetURL() << std::endl;
+    LOG_DEBUG("Request: {}", recivedString.str());
 
     int index = -1;
     for (uint64_t i = 0; i < Handlers_.size(); ++i) {
@@ -480,8 +497,7 @@ void THttpServer::ProcessClient() {
         response = ErrorHandler_.GetAnswer();
     }
 
-    LOG_INFO("Request: {}", recivedString.str());
-    LOG_INFO("Response: {}", response);
+    LOG_DEBUG("Request: {}; Response: {}", recivedString.str(), response);
 
     result = send(clientSocket, response.c_str(), (int)response.length(), 0);
     if (result == SOCKET_ERROR) {

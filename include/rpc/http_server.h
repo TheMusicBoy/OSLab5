@@ -112,6 +112,8 @@ struct TResponse {
     }
 };
 
+bool IsAcceptType(const NRpc::TRequest& request, const std::string& type);
+
 template <typename Callable, typename... Args>
 auto MakeHandler(Callable&& cb, Args&&... args) {
     return [
@@ -204,7 +206,6 @@ public:
     template <typename Handler>
     requires(CIsHandler<Handler>)
     bool CheckResponse(const Handler& response) const {
-        LOG_INFO("Checking {}, {}", response.GetURL(), response.GetMethod() == GetMethod() && std::regex_match(GetURL(), std::regex(response.GetURL())));
         return response.GetMethod() == GetMethod() && std::regex_match(GetURL(), std::regex(response.GetURL()));
     }
 
