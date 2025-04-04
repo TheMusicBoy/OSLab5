@@ -178,7 +178,9 @@ function updateTable(readings) {
 }
 
 function fetchLatestData() {
-    fetch(window.location.href, {
+    const currentPath = window.location.pathname;
+    const apiUrl = `${serviceEndpoint}${currentPath}`;
+    fetch(apiUrl, {
         headers: {
             'Accept': 'application/json'
         }

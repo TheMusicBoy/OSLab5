@@ -67,9 +67,9 @@ DECLARE_REFCOUNTED(TLogDestinationConfig);
 struct TConfig
     : public NCommon::TConfigBase
 {
-    unsigned MesureDelay = 100;
+    unsigned MesureDelay;
+    uint32_t Port;
 
-    std::filesystem::path AssetsPath = "/home/painfire/assets";
     std::vector<TLogDestinationConfigPtr> LogDestinations;
 
     NIpc::TSerialConfigPtr SerialConfig;

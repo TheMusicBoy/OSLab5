@@ -18,6 +18,7 @@ struct TSerialConfig
 {
     std::string SerialPort;
     unsigned BaudRate;
+    std::string Format;
 
     void Load(const nlohmann::json& data) override;
 };
@@ -35,7 +36,6 @@ public:
 
     void Open();
     void Close();
-    std::string ReadLine();
     size_t Read(void* buffer, size_t size);
     void Write(const std::string& data);
 
@@ -53,8 +53,6 @@ private:
 #endif
 
     TSerialConfigPtr Config_;
-
-    char buffer[256] = "";
 
     bool Connected_ = false;
 };

@@ -1,4 +1,5 @@
 #include <ipc/serial_port.h>
+#include <ipc/decode_encode.h>
 
 #include <common/logging.h>
 #include <common/exception.h>
@@ -19,36 +20,10 @@ namespace NIpc {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace {
-
-////////////////////////////////////////////////////////////////////////////////
-
-inline const std::string LoggingSource = "SerialPort";
-
-bool ReadToNl(char* buffer, std::string& data) {
-    if (char* nl = strchr(buffer, '\n')) {
-        *nl = '\0';
-        data += buffer;
-        size_t offset = nl - buffer + 1;
-        buffer[256 - offset] = '\0';
-        memmove(buffer, buffer + offset, 256 - offset);
-        return false;
-    } else {
-        data += buffer;
-        buffer[0] = '\0'; // Clear buffer after consuming
-        return true;
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-} // namespace
-
-////////////////////////////////////////////////////////////////////////////////
-
 void TSerialConfig::Load(const nlohmann::json& data) {
     SerialPort = TConfigBase::LoadRequired<std::string>(data, "serial_port");
     BaudRate = TConfigBase::LoadRequired<unsigned>(data, "baud_rate");
+    Format = TConfigBase::Load<std::string>(data, "format", "text");
 
     static const std::set<unsigned> kValidRates{9600, 19200, 38400, 57600, 115200};
     
@@ -215,22 +190,6 @@ size_t TComPort::Read(void* buffer, size_t size) {
     bytesRead = std::max(read(Desc_, buffer, size), 0l);
     return bytesRead;
 #endif
-}
-
-std::string TComPort::ReadLine() {
-    if (!Connected_) {
-        return "";
-    }
-
-    std::string data;
-    while (ReadToNl(buffer, data)) {
-        if (auto size = Read(buffer, sizeof(buffer) - 1)) {
-            buffer[size] = '\0';
-        } else {
-            break;
-        }
-    }
-    return data;
 }
 
 void TComPort::Write(const std::string& data) {

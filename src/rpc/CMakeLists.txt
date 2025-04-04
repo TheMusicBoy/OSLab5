@@ -3,7 +3,7 @@ set(SRCROOT "${PROJECT_SOURCE_DIR}/src/rpc")
 
 set(SRC
     ${SRCROOT}/http_server.cpp
-    ${INCROOT}/http_server.h
+    ${SRCROOT}/service_rpc.cpp
 
 )
 

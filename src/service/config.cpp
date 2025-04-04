@@ -49,9 +49,9 @@ void TLogDestinationConfig::Load(const nlohmann::json& data) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void TConfig::Load(const nlohmann::json& data) {
-    MesureDelay = TConfigBase::Load<unsigned>(data, "mesure_delay", MesureDelay);
+    MesureDelay = TConfigBase::Load<unsigned>(data, "mesure_delay", 100);
+    Port = TConfigBase::Load<uint32_t>(data, "port", 8080);
 
-    AssetsPath = TConfigBase::Load<std::string>(data, "assets_path", "/home/painfire/assets");
     if (data.contains("logging") && data["logging"].is_array()) {
         for (const auto& dest : data["logging"]) {
             auto logConfig = NCommon::New<TLogDestinationConfig>();

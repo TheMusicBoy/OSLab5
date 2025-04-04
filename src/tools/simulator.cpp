@@ -1,6 +1,7 @@
 #include <service/config.h>
 
 #include <ipc/serial_port.h>
+#include <ipc/decode_encode.h>
 #include <common/logging.h>
 #include <common/getopts.h>
 
@@ -21,6 +22,9 @@ public:
     void Run() {
         auto port = NCommon::New<NIpc::TComPort>(Config_->SerialConfig);
         port->Open();
+        auto format = NDecode::ParseTemperatureFormat(Config_->SerialConfig->Format);
+        auto encoder = NDecode::CreateEncoder(format);
+        encoder->SetComPort(port);
         
         LOG_INFO("Temperature simulator started on {}", Config_->SerialConfig->SerialPort);
 
@@ -28,9 +32,7 @@ public:
             while (true) {
                 auto now = std::chrono::system_clock::now();
                 double temp = CalculateSimulatedTemp(now);
-                std::string response = std::to_string(temp) + "\n";
-                
-                port->Write(response);
+                encoder->WriteTemperature(temp);
                 LOG_INFO("Sent temperature: {}C", temp);
                 std::this_thread::sleep_for(std::chrono::milliseconds(Config_->DelayMs));
             }

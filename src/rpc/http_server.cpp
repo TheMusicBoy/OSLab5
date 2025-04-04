@@ -1,4 +1,3 @@
-#include "assets.h"
 #include <rpc/http_server.h>
 
 #include <common/format.h>
@@ -6,7 +5,6 @@
 #include <common/logging.h>
 
 #include <filesystem>
-#include <regex>
 #include <thread>
 #include <signal.h>
 
@@ -126,19 +124,32 @@ std::string GetHttpStatusName(EHttpCode code) {
 }
 
 bool IsAcceptType(const NRpc::TRequest& request, const std::string& type) {
-    auto requestedTypes = NCommon::Split(request.GetHeader("Accept"), ",");
-    auto typeParts = NCommon::Split(type, "/");
-
-    for (const auto& requestedType : requestedTypes) {
-        auto parts = NCommon::Split(requestedType, "/");
-        if (parts.at(0) != "*" && parts.at(0) != typeParts.at(0)) {
-            continue;
-        }
-        if (parts.at(1) != "*" && parts.at(1) != typeParts.at(1)) {
-            continue;
-        }
+    const std::string acceptHeader = request.GetHeader("Accept");
+    
+    // If empty, assume the client accepts anything
+    if (acceptHeader.empty()) {
         return true;
     }
+    
+    // Check for explicit type
+    if (acceptHeader.find(type) != std::string::npos) {
+        return true;
+    }
+    
+    // Check for wildcards like */* or text/*
+    if (acceptHeader.find("*/*") != std::string::npos) {
+        return true;
+    }
+    
+    // If type is in the format "category/subcategory", check for "category/*"
+    auto slashPos = type.find('/');
+    if (slashPos != std::string::npos) {
+        std::string category = type.substr(0, slashPos);
+        if (acceptHeader.find(category + "/*") != std::string::npos) {
+            return true;
+        }
+    }
+    
     return false;
 }
 
@@ -159,7 +170,6 @@ TResponse& TResponse::SetRaw(const std::string& data) {
     Headers["Content-Length"] = std::to_string(Body.size());
     return *this;
 }
-
 
 TResponse& TResponse::SetJson(const nlohmann::json& data) {
     Body = data.dump();
@@ -285,24 +295,21 @@ bool THandler::IsRaw() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TErrorHandler::TErrorHandler(const std::string& errorPage)
-    : THandlerBase(), ErrorPage_(errorPage)
-{}
-
-std::string TErrorHandler::GetAnswer() const {
-    if (ErrorPage_ != "") {
-        return THandlerBase::FormatResponse(
-            TResponse()
-                .SetStatus(EHttpCode::NotFound)
-                .SetRaw(ErrorPage_)
-                .SetHeader("Content-Type", "text/html")
-        );
+TResponse TUnifiedHandler::GetResponse(const TRequest& request) {
+    if (BodyFunc_ == NULL) {
+        return TResponse().SetStatus(EHttpCode::NotImplemented).SetJson({{"message", "Handler not found"}});
     }
-    return THandlerBase::FormatResponse(
-        TResponse()
-            .SetStatus(EHttpCode::NotFound)
-            .SetRaw("")
-    );
+    return BodyFunc_(request);
+}
+
+std::string TUnifiedHandler::GetAnswer(const TRequest& request) {
+    return THandlerBase::FormatResponse(GetResponse(request));
+}
+
+TResponse DefaultNotFoundHandler(const TRequest& request) {
+    return TResponse()
+        .SetStatus(EHttpCode::NotFound)
+        .SetRaw("");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -369,10 +376,14 @@ int TSocketBase::Poll(const SOCKET& socket, int timeoutMs) {
 ////////////////////////////////////////////////////////////////////////////////
 
 THttpServer::THttpServer(const std::string& interfaceIp, const short int port)
-    : ErrorHandler_(NDetail::NotFoundPage)
+    : NotFoundHandler_(&DefaultNotFoundHandler)
 {
     Listen(interfaceIp, port);
     LOG_INFO("Successfuly start listening...");
+}
+
+void THttpServer::SetNotFoundHandler(const TUnifiedHandler& handler) {
+    NotFoundHandler_ = handler;
 }
 
 void THttpServer::Listen(const std::string& interfaceIp, const short int port) {
@@ -435,7 +446,6 @@ void THttpServer::ProcessClient() {
         return;
     }
 
-    // Ожидает пока не примет запрос
     SOCKET clientSocket = accept(Socket_, NULL, NULL);
     if (clientSocket == INVALID_SOCKET) {
         LOG_ERROR("Error accepting client: {}", ErrorCode());
@@ -452,7 +462,6 @@ void THttpServer::ProcessClient() {
 
     int bufSize = sizeof(InputBuf_) - 1;
 
-    // Читаем поток днных
     int result = -1;
     do {
         result = recv(clientSocket, InputBuf_, bufSize, 0);
@@ -494,7 +503,7 @@ void THttpServer::ProcessClient() {
             response = Handlers_[index].GetAnswer(request);
         }
     } else {
-        response = ErrorHandler_.GetAnswer();
+        response = NotFoundHandler_.GetAnswer(request);
     }
 
     LOG_DEBUG("Request: {}; Response: {}", recivedString.str(), response);

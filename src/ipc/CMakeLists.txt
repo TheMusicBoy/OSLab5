@@ -8,6 +8,9 @@ set(SRC
     ${SRCROOT}/serial_port.cpp
     ${INCROOT}/serial_port.h
 
+    ${SRCROOT}/decode_encode.cpp
+    ${INCROOT}/decode_encode.h
+
     ${SRCROOT}/db_client.cpp
     ${INCROOT}/db_client.h
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <service/service.h>
+#include <ui/service.h>
 
 #include <rpc/service_rpc.h>
 

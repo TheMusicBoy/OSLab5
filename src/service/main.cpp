@@ -56,25 +56,17 @@ int main(int argc, const char* argv[]) {
             auto startTime = std::chrono::system_clock::now();
 
             processor = [startTime, boost](double value) -> std::optional<TReading> {
-                if (value < -100 || value > 100) {
-                    return {};
-                }
-
                 auto difference = std::chrono::system_clock::now() - startTime;
                 difference *= boost;
                 return TReading(startTime + difference, value);
             };
         } else {
             processor = [](double value) -> std::optional<TReading> {
-                if (value < -100 || value > 100) {
-                    return {};
-                }
-
                 return TReading(std::chrono::system_clock::now(), value);
             };
         }
 
-        TRpcServerPtr server = NCommon::New<TRpcServer>("0.0.0.0", 8080, 5);
+        TRpcServerPtr server = NCommon::New<TRpcServer>("0.0.0.0", config->Port, 5);
         auto service = NCommon::New<NService::TService>(config, processor);
         server->Setup(service);
         server->Start();

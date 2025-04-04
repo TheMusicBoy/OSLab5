@@ -178,16 +178,20 @@ public:
     bool IsRaw();
 };
 
-class TErrorHandler
+class TUnifiedHandler
     : public THandlerBase {
+protected:
+    std::function<TResponse(const TRequest&)> BodyFunc_;
+
 public:
-    TErrorHandler(const std::string& errorPage);
+    template <typename BodyFunc>
+    TUnifiedHandler(BodyFunc&& bodyFunc)
+        : THandlerBase(), BodyFunc_(std::forward<BodyFunc>(bodyFunc))
+    {}
 
-    std::string GetAnswer() const;
+    TResponse GetResponse(const TRequest& request);
+    std::string GetAnswer(const TRequest& request);
 
-private:
-    std::string ErrorPage_;
-    
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -243,6 +247,8 @@ public:
     void Listen(const std::string& interfaceIp, const short int port);
     void ProcessClient();
 
+    void SetNotFoundHandler(const TUnifiedHandler& handler);
+
     template <typename Handler>
     requires(CIsHandler<Handler>)
     void RegisterHandler(const Handler& handler) {
@@ -253,7 +259,7 @@ private:
     char InputBuf_[1024];
 
     std::vector<THandler> Handlers_;
-    TErrorHandler ErrorHandler_;
+    TUnifiedHandler NotFoundHandler_;
 };
 
 }
